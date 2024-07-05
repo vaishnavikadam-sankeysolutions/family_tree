@@ -29,6 +29,7 @@
 <body>
     <h1>Family Tree</h1>
     <a href="{% url 'tree:add_person' %}">Add Person</a>
+    <h1></h1>
     <div id="tree"></div>
     
 
@@ -44,7 +45,7 @@
                 function convertToTree(data) {
                     let map = {};
                     data.forEach(person => {
-                        map[person.id] = {...person, children: [], spouse: null, spouseNode: null };
+                        map[person.id] = {...person, children: [], spouse: null, spouseNode: null, x: 0, y: 0 };
                     });
                     let treeData = null;
                     data.forEach(person => {
@@ -55,73 +56,76 @@
                         }
                         if (person.spouse_id!== null) {
                             const spouse = map[person.spouse_id];
+                            map[person.id].spouse = spouse;
+                            map[person.id].spouseNode = spouse;
                             if (!spouse.parent) {
                                 spouse.parent = person;
                             }
-                            if (!person.spouseNode) {
-                                person.spouseNode = spouse;
+                            // Link spouse to the existing tree
+                            if (treeData) {
+                                treeData.children.push(spouse);
                             }
-                           
-                            if (!person.children) {
-                                person.children = [];
-                            }
-                            person.children.push(spouse);
                         }
                     });
                     return treeData;
                 }
 
                 function renderTree(data) {
+                    d3.select("#tree").select("svg").remove();
                     const svg = d3.select("#tree").append("svg")
-                       .attr("width", 960)
-                       .attr("height", 600),
+                      .attr("width", 960)
+                      .attr("height", 600),
                         g = svg.append("g").attr("transform", "translate(40,0)");
-                
+                    
                     const tree = d3.tree().size([960, 500]);
-                
+                    
                     const root = d3.hierarchy(data);
-                
+                    
                     tree(root);
-                
+                    
+                    root.each(d => {
+                        d.x = d.y; // Set x to y, since we're using a vertical tree
+                    });
+                    
                     const link = g.selectAll(".link")
-                       .data(root.descendants().slice(1))
-                       .enter().append("path")
-                       .attr("class", "link")
-                       .attr("d", d => `
+                      .data(root.descendants().slice(1))
+                      .enter().append("path")
+                      .attr("class", "link")
+                      .attr("d", d => `
                             M${d.y},${d.x}
                             C${(d.y + d.parent.y) / 2},${d.x}
                              ${(d.y + d.parent.y) / 2},${d.parent.x}
                              ${d.parent.y},${d.parent.x}
                         `);
-                
-                    const node = g.selectAll(".node")
-                       .data(root.descendants())
-                       .enter().append("g")
-                       .attr("class", d => "node" + (d.children? " node--internal" : " node--leaf"))
-                       .attr("transform", d => `translate(${d.y},${d.x})`);
-                
-                    node.append("circle")
-                       .attr("r", 10);
-                
-                    node.append("image")
-                       .attr("xlink:href", d => d.data.image_url)
-                       .attr("x", -25)
-                       .attr("y", -25)
-                       .attr("width", 50)
-                       .attr("height", 50);
-                
-                    node.append("text")
-                       .attr("dy", ".35em")
-                       .attr("x", d => d.children? -13 : 13)
-                       .style("text-anchor", d => d.children? "end" : "start")
-                       .text(d => d.data.name);
-                
                     
+                    const node = g.selectAll(".node")
+                      .data(root.descendants())
+                      .enter().append("g")
+                      .attr("class", d => "node" + (d.children? " node--internal" : " node--leaf"))
+                      .attr("transform", d => `translate(${d.y},${d.x})`);
+                    
+                    node.append("circle")
+                      .attr("r", 10);
+                    
+                    node.append("image")
+                      .attr("xlink:href", d => d.data.image_url)
+                      .attr("x", -25)
+                      .attr("y", -25)
+                      .attr("width", 50)
+                      .attr("height", 50);
+                    
+                    node.append("text")
+                      .attr("dy", ".35em")
+                      .attr("x", d => d.children? -13 : 13)
+                      .style("text-anchor", d => d.children? "end" : "start")
+                      .text(d => d.data.name);
+                    
+                    // Add spouse links
                     const spouseLink = g.selectAll(".spouse-link")
-                       .data(root.descendants().filter(d => d.data.spouseNode!== null))
-                       .enter().append("path")
-                       .attr("class", "spouse-link")
-                       .attr("d", d => `
+                      .data(root.descendants().filter(d => d.data.spouse!== null))
+                      .enter().append("path")
+                      .attr("class", "spouse-link")
+                      .attr("d", d => `
                             M${d.y},${d.x}
                             C${(d.y + d.data.spouseNode.y) / 2},${d.x}
                              ${(d.y + d.data.spouseNode.y) / 2},${d.data.spouseNode.x}
