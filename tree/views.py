@@ -1,5 +1,3 @@
-# tree/views.py
-
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from .models import Person
