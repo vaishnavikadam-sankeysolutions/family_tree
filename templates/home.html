@@ -37,7 +37,9 @@
             fetch('/api/persons/')
                 .then(response => response.json())
                 .then(data => {
+                    console.log(data)
                     const treeData = convertToTree(data);
+                    console.log('tree data', treeData)
                     renderTree(treeData);
                 });
 
@@ -70,13 +72,14 @@
                 }
 
                 function renderTree(data) {
+                    console.log(data)
                     d3.select("#tree").select("svg").remove();
                     const svg = d3.select("#tree").append("svg")
-                      .attr("width", 960)
-                      .attr("height", 600),
+                      .attr("width", 660)
+                      .attr("height", 400),
                         g = svg.append("g").attr("transform", "translate(40,0)");
                     
-                    const tree = d3.tree().size([960, 500]);
+                    const tree = d3.tree().size([660, 300]);
                     
                     const root = d3.hierarchy(data);
                     
