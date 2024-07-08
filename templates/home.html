@@ -46,95 +46,116 @@
                 function convertToTree(data) {
                     let map = {};
                     data.forEach(person => {
-                        map[person.id] = {...person, children: [], spouse: null, spouseNode: null, x: 0, y: 0 };
+                        map[person.id] = { ...person, children: [], spouseNode: null };
                     });
+                
                     let treeData = null;
+                
                     data.forEach(person => {
-                        if (person.parent_id === null) {
-                            treeData = map[person.id];
-                        } else {
-                            map[person.parent_id].children.push(map[person.id]);
-                        }
-                        if (person.spouse_id!== null) {
-                            const spouse = map[person.spouse_id];
-                            map[person.id].spouse = spouse;
-                            map[person.id].spouseNode = spouse;
-                            if (!spouse.parent) {
-                                spouse.parent = person;
+                        if (person.parent_id === null && !map[person.id].parent) {
+                            if (!treeData) {
+                                treeData = map[person.id];
                             }
-                            // Link spouse to the existing tree
-                            if (treeData) {
-                                treeData.children.push(spouse);
+                            if (person.spouse_id !== null) {
+                                map[person.id].spouseNode = map[person.spouse_id];
+                                map[person.spouse_id].spouseNode = map[person.id];
+                            }
+                        } else if (person.parent_id !== null) {
+                            map[person.parent_id].children.push(map[person.id]);
+                            if (person.spouse_id !== null) {
+                                map[person.id].spouseNode = map[person.spouse_id];
+                                map[person.spouse_id].spouseNode = map[person.id];
                             }
                         }
                     });
+                
                     return treeData;
                 }
-
+                
+                
+                
                 function renderTree(data) {
-                    console.log(data)
                     d3.select("#tree").select("svg").remove();
                     const svg = d3.select("#tree").append("svg")
-                      .attr("width", 660)
-                      .attr("height", 400),
-                        g = svg.append("g").attr("transform", "translate(40,0)");
-                    
-                    const tree = d3.tree().size([660, 300]);
-                    
+                        .attr("width", 960)
+                        .attr("height", 600),
+                        g = svg.append("g").attr("transform", "translate(40,40)");
+                
+                    const tree = d3.tree().size([800, 500]);
+                
                     const root = d3.hierarchy(data);
-                    
+                
                     tree(root);
-                    
+                
+                    // Adjust x and y for vertical layout
                     root.each(d => {
-                        d.x = d.y; // Set x to y, since we're using a vertical tree
+                        const temp = d.x;
+                        d.x = d.y;
+                        d.y = temp;
                     });
-                    
+                
                     const link = g.selectAll(".link")
-                      .data(root.descendants().slice(1))
-                      .enter().append("path")
-                      .attr("class", "link")
-                      .attr("d", d => `
+                        .data(root.descendants().slice(1))
+                        .enter().append("path")
+                        .attr("class", "link")
+                        .attr("d", d => `
                             M${d.y},${d.x}
                             C${(d.y + d.parent.y) / 2},${d.x}
-                             ${(d.y + d.parent.y) / 2},${d.parent.x}
-                             ${d.parent.y},${d.parent.x}
+                                ${(d.y + d.parent.y) / 2},${d.parent.x}
+                                ${d.parent.y},${d.parent.x}
                         `);
-                    
+                
                     const node = g.selectAll(".node")
-                      .data(root.descendants())
-                      .enter().append("g")
-                      .attr("class", d => "node" + (d.children? " node--internal" : " node--leaf"))
-                      .attr("transform", d => `translate(${d.y},${d.x})`);
-                    
-                    node.append("circle")
-                      .attr("r", 10);
-                    
+                        .data(root.descendants())
+                        .enter().append("g")
+                        .attr("class", d => "node" + (d.children ? " node--internal" : " node--leaf"))
+                        .attr("transform", d => `translate(${d.y},${d.x})`);
+                
                     node.append("image")
-                      .attr("xlink:href", d => d.data.image_url)
-                      .attr("x", -25)
-                      .attr("y", -25)
-                      .attr("width", 50)
-                      .attr("height", 50);
-                    
+                        .attr("xlink:href", d => d.data.image_url)
+                        .attr("x", -25)
+                        .attr("y", -25) // Center the image vertically
+                        .attr("width", 50)
+                        .attr("height", 50);
+                
                     node.append("text")
-                      .attr("dy", ".35em")
-                      .attr("x", d => d.children? -13 : 13)
-                      .style("text-anchor", d => d.children? "end" : "start")
-                      .text(d => d.data.name);
-                    
-                    // Add spouse links
-                    const spouseLink = g.selectAll(".spouse-link")
-                      .data(root.descendants().filter(d => d.data.spouse!== null))
-                      .enter().append("path")
-                      .attr("class", "spouse-link")
-                      .attr("d", d => `
-                            M${d.y},${d.x}
-                            C${(d.y + d.data.spouseNode.y) / 2},${d.x}
-                             ${(d.y + d.data.spouseNode.y) / 2},${d.data.spouseNode.x}
-                             ${d.data.spouseNode.y},${d.data.spouseNode.x}
-                        `);
+                        .attr("dy", "3em") // Adjusted to place below image
+                        .attr("x", 0)
+                        .style("text-anchor", "middle")
+                        .text(d => d.data.name);
+                
+                    // Add spouse nodes and links
+                    root.descendants().forEach(d => {
+                        if (d.data.spouseNode) {
+                            const spouseNode = g.append("g")
+                                .attr("class", "node spouse")
+                                .attr("transform", `translate(${d.y + 100},${d.x})`); // Adjust spacing for spouses
+                
+                            spouseNode.append("image")
+                                .attr("xlink:href", d.data.spouseNode.image_url)
+                                .attr("x", -25)
+                                .attr("y", -25) // Center the image vertically
+                                .attr("width", 50)
+                                .attr("height", 50);
+                
+                            spouseNode.append("text")
+                                .attr("dy", "3em") // Adjusted to place below image
+                                .attr("x", 0)
+                                .style("text-anchor", "middle")
+                                .text(d.data.spouseNode.name);
+                
+                            // Link to spouse
+                            g.append("path")
+                                .attr("class", "link spouse-link")
+                                .attr("d", `
+                                    M${d.y},${d.x}
+                                    H${d.y + 100}
+                                `);
+                        }
+                    });
                 }
-        });
+                
+            });
     </script>
 </body>
 </html>
